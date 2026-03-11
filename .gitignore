@@ -1,0 +1,120 @@
+# ============================================
+# DATA DIRECTORIES - Binary files, large datasets, and persistent storage
+# ============================================
+
+# PostgreSQL database files (BINARY - never share)
+/postgres-airflow/data/
+/postgres-app/data/
+
+# Kafka data (BINARY - never share)
+/kafka/data/
+
+# Spark streaming checkpoints (BINARY - can be large)
+/checkpoint/
+
+# pgAdmin settings (optional - contains saved connections)
+/pgadmin/
+
+# ============================================
+# LOG FILES - Auto-generated, can be large
+# ============================================
+
+# Airflow logs
+/airflow/logs/
+/airflow/logs/*.log
+/airflow/logs/**/*.log
+/airflow/logs/**/*.py
+!airflow/logs/.gitkeep
+
+# ============================================
+# LARGE DATASETS - Keep repo small
+# ============================================
+
+# Large data files in shared data volume
+/data/*.csv
+/data/*.parquet
+/data/*.json
+/data/*.avro
+/data/*.orc
+/data/*.db
+/data/*.sqlite
+/data/*.zip
+/data/*.tar
+/data/*.gz
+!data/.gitkeep
+
+# ============================================
+# PYTHON CACHE FILES
+# ============================================
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python distributions
+dist/
+build/
+*.egg-info/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+.pytest_cache/
+
+# ============================================
+# IDE AND EDITOR FILES
+# ============================================
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Vim
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================
+# DOCKER VOLUMES (Docker-managed)
+# ============================================
+
+# These are Docker-managed volumes, not directories
+# But include them in case they get created as directories
+pip-cache/
+pip-packages/
+
+# ============================================
+# ENVIRONMENT FILES - KEEP THIS COMMENTED FOR EDUCATIONAL PURPOSES!
+# ============================================
+
+# For educational content, we WANT to share .env
+# But if this were production, you'd uncomment:
+# .env
+# .env.local
+# .env.*
+
+# ============================================
+# SYSTEM FILES
+# ============================================
+
+.DS_Store
+Thumbs.db
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# KEEP EMPTY DIRECTORY STRUCTURE
+# ============================================
+
+# Allow .gitkeep files to preserve empty directory structure
+!.gitkeep
