@@ -317,12 +317,12 @@ docker-compose down -v
 ## 📁 Complete Project Structure & Service Description
 
 ### Your Workspace Directory Structure
-
 ```
 your-project/
 │
 ├── 📄 docker-compose.yml          # Service definitions and configuration
 ├── 📄 .env                        # Environment variables (credentials, paths)
+├── 📄 .gitignore                  # Specifies which files Git should ignore
 │
 ├── 📁 postgres-airflow/           # Airflow metadata database
 │   └── 📁 data/                    # PostgreSQL binary files ⚠️ DO NOT EDIT
@@ -345,6 +345,7 @@ your-project/
 ├── 📁 checkpoint/                   # Spark streaming checkpoints (fault recovery)
 │
 ├── 📁 data/                         # Shared data files (CSV, Parquet, JSON)
+│   └── 📄 .gitkeep                   # Placeholder to keep empty folder in Git
 │
 ├── 📁 python_code/                  # Python applications, APIs, utilities
 │
@@ -1361,5 +1362,6 @@ To contribute improvements:
 - Document workarounds for common issues
 
 ---
+
 
 **Happy Data Engineering!** 🚀📊
