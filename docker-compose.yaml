@@ -1,0 +1,426 @@
+services:
+  # ============================================================================
+  # DATABASE SERVICES
+  # ============================================================================
+  
+  # PostgreSQL for Airflow metadata - DO NOT USE FOR APPLICATION DATA
+  postgres-airflow:
+    image: postgres:15                                    # Official PostgreSQL 15 image
+    container_name: postgres-airflow                      # ⚡ FIXED: Hard-coded container name
+    hostname: postgres-airflow                            # ⚡ FIXED: Hard-coded hostname
+    ports:
+      - "${POSTGRES_AIRFLOW_PORT}:5432"                   # Maps container port to host
+                                                          # Access from host: localhost:5432
+    environment:
+      - POSTGRES_USER=${POSTGRES_AIRFLOW_USER}            # Database username (from .env)
+      - POSTGRES_PASSWORD=${POSTGRES_AIRFLOW_PASSWORD}    # Database password (from .env)
+      - POSTGRES_DB=${POSTGRES_AIRFLOW_DB}                # Database name (Airflow metadata only!)
+    volumes:
+      - ${POSTGRES_AIRFLOW_VOLUME}:/var/lib/postgresql/data  # INPUT/OUTPUT: Database files
+                                                          # Location on host: ./postgres-airflow/data/
+                                                          # ⚠️  BINARY FILES - not human readable
+                                                          # Contains ALL Airflow state:
+                                                          # - DAG runs history
+                                                          # - Task instances
+                                                          # - Connections/variables
+      - ${SQL_SCRIPTS_VOLUME}:/scripts  # Mount SQL scripts here
+    networks:
+      - data-net                                           # Attaches to internal network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AIRFLOW_USER}"]  # Checks if DB is ready
+      interval: 10s                                        # Check every 10 seconds
+      timeout: 5s                                          # Wait 5 seconds for response
+      retries: 5                                           # Mark unhealthy after 5 failures
+
+  # Separate PostgreSQL for YOUR application data (use this for business data)
+  postgres-app:
+    image: postgres:15                                    # Official PostgreSQL 15 image
+    container_name: postgres-app                          # ⚡ FIXED: Hard-coded container name
+    hostname: postgres-app                                # ⚡ FIXED: Hard-coded hostname
+    ports:
+      - "${POSTGRES_APP_PORT}:5432"                       # Maps to different host port to avoid conflict
+                                                          # Access from host: localhost:5433
+    environment:
+      - POSTGRES_USER=${POSTGRES_APP_USER}                # Application DB username
+      - POSTGRES_PASSWORD=${POSTGRES_APP_PASSWORD}        # Application DB password
+      - POSTGRES_DB=${POSTGRES_APP_DB}                    # Your business data database
+    volumes:
+      - ${POSTGRES_APP_VOLUME}:/var/lib/postgresql/data   # INPUT/OUTPUT: Your application data
+                                                          # Location on host: ./postgres-app/data/
+                                                          # ⚠️  BINARY FILES - use pgAdmin to query
+    networks:
+      - data-net
+
+  # ============================================================================
+  # MESSAGE BROKER SERVICES
+  # ============================================================================
+  
+  redis:
+    image: redis:7-alpine                                 # Lightweight Redis for Celery
+    container_name: redis                                 # ⚡ FIXED: Hard-coded container name
+    hostname: redis                                       # ⚡ FIXED: Hard-coded hostname
+    ports:
+      - "${REDIS_PORT}:6379"                              # Maps Redis port to host
+                                                          # Access from host: localhost:6379
+    networks:
+      - data-net                                           # Internal communication only
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]                  # Checks if Redis is responding
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ⚠️  NO VOLUMES - Redis data is ephemeral (in-memory only)
+    # Used for Celery task queue, not persistent storage
+
+  # ============================================================================
+  # MANAGEMENT UI SERVICES
+  # ============================================================================
+  
+  pgadmin:
+    image: ${PGADMIN_IMAGE}                               # PostgreSQL admin UI tool
+    container_name: pgadmin                               # Fixed container name
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}             # Login email for pgAdmin
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}       # Login password for pgAdmin
+    ports:
+      - "${PGADMIN_PORT}:80"                              # Maps pgAdmin web UI to host
+                                                          # Access UI: http://localhost:5050
+    volumes:
+      - ${PGADMIN_VOLUME}:/var/lib/pgadmin                # INPUT/OUTPUT: Stores pgAdmin settings
+                                                          # Location on host: ./pgadmin/
+                                                          # Stores saved server connections
+      - ${SQL_SCRIPTS_VOLUME}:/scripts 
+      - ./data:/data                                     # To import CSV files Manually
+      - ./postgres/backups:/backups                      # For SQL backups from the PgAdmin to your local machine
+    depends_on:
+      - postgres-airflow                                   # Wait for Airflow DB
+      - postgres-app                                       # Wait for App DB
+    networks:
+      - data-net
+
+  # ============================================================================
+  # AIRFLOW ORCHESTRATION SERVICES
+  # ============================================================================
+  
+  airflow-webserver:
+    image: ${AIRFLOW_IMAGE}                               # Airflow with Python
+    container_name: airflow-webserver                      # Fixed container name
+    hostname: airflow-webserver                            # Hostname for discovery
+    ports:
+      - "8080:8080"                                        # Maps Airflow web UI to host
+                                                          # Access UI: http://localhost:8080
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW_CORE_EXECUTOR}  # Celery for distributed tasks
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}  # Connection to metadata DB
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}  # New (recommended)
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW_CELERY_RESULT_BACKEND}  # Celery results in DB
+      - AIRFLOW__CELERY__BROKER_URL=${REDIS_URL}          # Celery broker using Redis
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}   # Encrypts sensitive data
+      - AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW_LOAD_EXAMPLES}  # Don't load example DAGs
+      - AIRFLOW__CORE__ENABLE_XCOM_PICKLING=${AIRFLOW_ENABLE_XCOM_PICKLING}  # Complex XCom objects
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_SECRET_KEY}  # Session encryption
+      - AIRFLOW_CONN_KAFKA_DEFAULT=broker:${KAFKA_INTERNAL_PORT}  # ⚡ FIXED: Hard-coded broker
+      - _PIP_ADDITIONAL_REQUIREMENTS=${AIRFLOW_EXTRA_PIP_PACKAGES}  # Extra Python packages
+    volumes:
+      - ${AIRFLOW_DAGS_VOLUME}:/opt/airflow/dags          # INPUT: Your DAG definitions
+                                                          # Location on host: ./airflow/dags/
+                                                          # Airflow reads DAGs from here
+                                                          # File watch: changes auto-load
+      
+      - ${AIRFLOW_LOGS_VOLUME}:/opt/airflow/logs          # OUTPUT: All Airflow logs
+                                                          # Location on host: ./airflow/logs/
+                                                          # Includes: scheduler.log, webserver.log,
+                                                          # task logs in dag_id/task_id/ folders
+      
+      - ${AIRFLOW_PLUGINS_VOLUME}:/opt/airflow/plugins    # INPUT: Custom Airflow plugins
+                                                          # Location on host: ./airflow/plugins/
+                                                          # Python files that extend Airflow
+      
+      - ${AIRFLOW_SCRIPTS_VOLUME}:/opt/airflow/scripts    # INPUT: Helper scripts for DAGs
+                                                          # Location on host: ./airflow/scripts/
+                                                          # Can be imported by DAGs
+      
+      - ${DEV_CODE_VOLUME}:/opt/airflow/dev_code  # Mount code here!
+      - ./data:/data                       # Mount data too!
+      - pip-cache:/home/airflow/.cache/pip  # Cache pip downloads
+      # - pip-packages:/home/airflow/.local/lib/python3.11/site-packages  # Persist installed packages
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy                         # Wait for PostgreSQL
+      redis:
+        condition: service_healthy                         # Wait for Redis
+    networks:
+      - data-net
+    command: >
+      bash -c "
+      echo '==================================================' &&
+      echo 'STARTING AIRFLOW WEBSERVER INITIALIZATION' &&
+      echo '==================================================' &&
+      echo '[1/5] Environment: OK' &&
+      echo '[2/5] Checking packages...' &&
+      echo '[3/5] Initializing database...' &&
+      airflow db init &&
+      echo '[4/5] Creating admin user...' &&
+      airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin 2>/dev/null ||
+      echo 'Admin user already exists, continuing...' &&
+      echo '[5/5] Starting webserver...' &&
+      echo '✅ Airflow ready at http://localhost:8080' &&
+      echo '👤 Username: admin' &&
+      echo '🔑 Password: admin' &&
+      airflow webserver
+      "
+
+  airflow-scheduler:
+    image: ${AIRFLOW_IMAGE}                               # Same Airflow image
+    container_name: airflow-scheduler                      # Fixed container name
+    hostname: airflow-scheduler                            # Hostname for discovery
+    environment:
+      # Same environment as webserver (needs same config)
+      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW_CORE_EXECUTOR}
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}  # New (recommended)
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW_CELERY_RESULT_BACKEND}
+      - AIRFLOW__CELERY__BROKER_URL=${REDIS_URL}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CORE__ENABLE_XCOM_PICKLING=${AIRFLOW_ENABLE_XCOM_PICKLING}
+      - AIRFLOW_CONN_KAFKA_DEFAULT=broker:${KAFKA_INTERNAL_PORT}  # ⚡ FIXED: Hard-coded broker
+      - _PIP_ADDITIONAL_REQUIREMENTS=${AIRFLOW_EXTRA_PIP_PACKAGES}
+    volumes:
+      # Same volumes as webserver (needs access to same files)
+      - ${AIRFLOW_DAGS_VOLUME}:/opt/airflow/dags          # INPUT: Reads DAGs to schedule
+      - ${AIRFLOW_LOGS_VOLUME}:/opt/airflow/logs          # OUTPUT: Scheduler logs
+      - ${AIRFLOW_PLUGINS_VOLUME}:/opt/airflow/plugins    # INPUT: Plugins for scheduling
+      - ${AIRFLOW_SCRIPTS_VOLUME}:/opt/airflow/scripts    # INPUT: Helper scripts
+      - ${DEV_CODE_VOLUME}:/opt/airflow/dev_code  # Mount code here!
+      - ./data:/data                      # Mount data too!
+      - pip-cache:/home/airflow/.cache/pip
+      # - pip-packages:/home/airflow/.local/lib/python3.11/site-packages
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_started                         # Wait for webserver
+    networks:
+      - data-net
+    command: scheduler                                     # Start scheduler component
+
+  airflow-worker:
+    image: ${AIRFLOW_IMAGE}                               # Same Airflow image
+    container_name: airflow-worker                          # Fixed container name
+    hostname: airflow-worker                                # Hostname for discovery
+    environment:
+      # Same environment (executes the actual tasks)
+      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW_CORE_EXECUTOR}
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${AIRFLOW_SQL_ALCHEMY_CONN}  # New (recommended)
+      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW_CELERY_RESULT_BACKEND}
+      - AIRFLOW__CELERY__BROKER_URL=${REDIS_URL}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CORE__ENABLE_XCOM_PICKLING=${AIRFLOW_ENABLE_XCOM_PICKLING}
+      - AIRFLOW_CONN_KAFKA_DEFAULT=broker:${KAFKA_INTERNAL_PORT}  # ⚡ FIXED: Hard-coded broker
+      - _PIP_ADDITIONAL_REQUIREMENTS=${AIRFLOW_EXTRA_PIP_PACKAGES}
+    volumes:
+      # Same volumes (executes code from these locations)
+      - ${AIRFLOW_DAGS_VOLUME}:/opt/airflow/dags          # INPUT: DAG code to execute
+      - ${AIRFLOW_LOGS_VOLUME}:/opt/airflow/logs          # OUTPUT: Task execution logs
+      - ${AIRFLOW_PLUGINS_VOLUME}:/opt/airflow/plugins    # INPUT: Plugins for tasks
+      - ${AIRFLOW_SCRIPTS_VOLUME}:/opt/airflow/scripts    # INPUT: Scripts used by tasks
+      - ${DEV_CODE_VOLUME}:/opt/airflow/dev_code
+      - ./data:/data
+      - pip-cache:/home/airflow/.cache/pip
+      # - pip-packages:/home/airflow/.local/lib/python3.11/site-packages
+      # Optional: Add data directory if tasks need to read/write files
+      # - ./data:/opt/airflow/data                         # For task I/O
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_started
+    networks:
+      - data-net
+    command: celery worker                                 # Start as Celery worker
+
+  # ============================================================================
+  # KAFKA STREAMING SERVICES
+  # ============================================================================
+  
+  broker:
+    image: ${KAFKA_IMAGE}                                      # Confluent Kafka 7.6.1
+    hostname: broker                                            # Internal hostname for container discovery
+    container_name: broker                                      # Fixed container name for easy reference
+    ports:
+      - "${KAFKA_PORT}:${KAFKA_PORT}"                          # Maps host port 9092 to container
+                                                               # Access from host machine: localhost:9092
+    environment:
+      # ====================================================
+      # KRaft Mode Configuration (No Zookeeper)
+      # ====================================================
+      KAFKA_NODE_ID: 1                                          # Unique ID for this broker in the cluster
+      KAFKA_PROCESS_ROLES: 'broker,controller'                  # This node acts as both broker (data) and controller (metadata)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:${KAFKA_CONTROLLER_PORT}'  # All controllers in cluster (just this one)
+      
+      # ====================================================
+      # Listener Configuration - CRITICAL FOR CONNECTIVITY
+      # ====================================================
+      # Maps listener names to security protocols
+      # This tells Kafka: "CONTROLLER" and "PLAINTEXT" both use PLAINTEXT protocol
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      
+      # Where Kafka listens for connections (inside the container)
+      # - 0.0.0.0 means "listen on all network interfaces"
+      # - PLAINTEXT: for internal container-to-container communication (port 29092)
+      # - CONTROLLER: for KRaft controller communications (port 29093)  
+      # - PLAINTEXT_HOST: for connections from host machine (port 9092)
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:${KAFKA_INTERNAL_PORT},CONTROLLER://0.0.0.0:${KAFKA_CONTROLLER_PORT},PLAINTEXT_HOST://0.0.0.0:${KAFKA_PORT}'
+      
+      # What Kafka advertises to clients (how they should connect)
+      # - Internal clients (other containers) use: broker:29092
+      # - External clients (your host machine) use: localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:${KAFKA_INTERNAL_PORT},PLAINTEXT_HOST://localhost:${KAFKA_PORT}'
+      
+      # Which listener to use for inter-broker communication
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      
+      # Which listener is used for controller connections
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      
+      # ====================================================
+      # Cluster Configuration
+      # ====================================================
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}                           # Unique ID generated for this cluster
+      
+      # ====================================================
+      # Topic Configuration
+      # ====================================================
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1                 # For __consumer_offsets topic (1 is OK for dev)
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0                 # No delay for consumer group rebalance
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1                     # Min in-sync replicas for transaction log
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1         # Replication factor for transaction log
+      
+      # ====================================================
+      # KRaft Metadata Configuration
+      # ====================================================
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'                      # Where Kafka stores data
+      KAFKA_METADATA_LOG_SEGMENT_MS: 60000                       # Time before rolling metadata log segment
+      KAFKA_METADATA_LOG_RETENTION_MS: 600000                    # How long to retain metadata
+      KAFKA_METADATA_LOG_MAX_RECORD_BYTES_BETWEEN_SNAPSHOTS: 4096  # When to snapshot metadata log
+      
+      # ====================================================
+      # Additional Production Recommendations (Optional)
+      # ====================================================
+      # KAFKA_NUM_PARTITIONS: 3                                   # Default partitions for topics
+      # KAFKA_DEFAULT_REPLICATION_FACTOR: 1                       # Default replication factor
+      # KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'                   # Auto-create topics (dev only)
+      # KAFKA_DELETE_TOPIC_ENABLE: 'true'                         # Allow topic deletion
+      
+    volumes:
+      - ./kafka/data:/var/lib/kafka/data                         # INPUT/OUTPUT: Kafka data persistence
+                                                                 # Location on host: ./kafka/data/
+                                                                 # ⚠️  BINARY FILES - stores all topics and messages
+                                                                 # Without this volume, ALL DATA IS LOST when container restarts!
+    
+    networks:
+      - data-net                                                  # Attach to internal network for container communication
+
+  schema-registry:
+    image: ${SCHEMA_REGISTRY_IMAGE}                       # Manages Avro/Protobuf schemas
+    container_name: schema-registry                        # ⚡ FIXED: Hard-coded container name
+    hostname: schema-registry                              # ⚡ FIXED: Hard-coded hostname
+    ports:
+      - "${SCHEMA_REGISTRY_PORT}:${SCHEMA_REGISTRY_PORT}"  # Maps schema registry API
+                                                          # Access API: http://localhost:8081
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: broker:${KAFKA_INTERNAL_PORT}  # ⚡ FIXED: Hard-coded broker
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry           # ⚡ FIXED: Hard-coded hostname
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:${SCHEMA_REGISTRY_PORT}  # Listen on all interfaces
+    depends_on:
+      - broker                                             # Wait for Kafka
+    networks:
+      - data-net
+    # ⚠️  Schemas stored in Kafka, no volume needed
+
+  kafka-ui:
+    container_name: kafka-ui                               # Fixed container name
+    image: ${KAFKA_UI_IMAGE}                              # Web UI for Kafka
+    ports:
+      - ${KAFKA_UI_PORT}:8080                             # Maps UI to host
+                                                          # Access UI: http://localhost:8090
+    depends_on:
+      - broker                                             # Wait for Kafka
+      - schema-registry                                    # Wait for schema registry
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local                         # Cluster display name
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:${KAFKA_INTERNAL_PORT}  # ⚡ FIXED: Hard-coded broker
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:${SCHEMA_REGISTRY_PORT}  # ⚡ FIXED: Hard-coded schema-registry
+    networks:
+      - data-net
+    # ⚠️  NO VOLUMES - UI is stateless
+
+  # ============================================================================
+  # DEVELOPMENT ENVIRONMENTS
+  # ============================================================================
+  
+  python-dev:                                             # It includes PySpark and Jupyter for development
+    image: ${DEV_IMAGE}                                   # Jupyter with PySpark
+    container_name: python-dev                            # Fixed container name
+    ports:
+      - "${JUPYTER_PORT}:8888"                             # Maps Jupyter Lab to host
+                                                          # Access: http://localhost:8888?token=devtoken
+      - "${SPARK_UI_PORT}:4040"                            # Maps Spark UI to host
+                                                          # Access: http://localhost:4040
+    volumes:
+      - ${DEV_CODE_VOLUME}:/home/jovyan/work              # INPUT/OUTPUT: Jupyter notebooks and Python code
+                                                          # Location on host: ./dev_code/
+                                                          # Save notebooks and Python modules here for persistence
+      
+      - ${CHECKPOINT_VOLUME}:/home/jovyan/checkpoint      # INPUT/OUTPUT: Spark streaming checkpoints
+                                                          # Location on host: ./checkpoint/
+                                                          # Critical for streaming recovery
+      
+      - ./data:/home/jovyan/data                          # INPUT/OUTPUT: Data files
+                                                          # Location on host: ./data/
+                                                          # Read CSV/Parquet, write results
+      - pip-cache:/home/jovyan/.cache/pip           
+      # - pip-packages:/home/jovyan/.local/lib/python3.11/site-packages  # We will remove the packages persistence cause of the permission nightmares
+    environment:
+      - JUPYTER_ENABLE_LAB=yes                             # Enable Jupyter Lab interface
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN}                     # Access token from .env
+      - PYSPARK_SUBMIT_ARGS=--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1 pyspark-shell  # Kafka integration
+      - COMMON_PACKAGES=${COMMON_PYTHON_PACKAGES}    
+    depends_on:
+      - broker                                             # Wait for Kafka
+      - schema-registry                                    # Wait for schema registry
+    networks:
+      - data-net
+    command: >
+      bash -c "
+      echo 'Installing common packages...' &&
+      echo 'Packages to install: $${COMMON_PACKAGES}' &&  
+      pip install --user --no-cache-dir $${COMMON_PACKAGES} --upgrade-strategy only-if-needed &&
+      echo '✅ Common packages installed' &&
+      start-notebook.sh
+      "
+
+# ============================================================================
+# NETWORK CONFIGURATION
+# ============================================================================
+
+networks:
+  data-net:
+    driver: bridge                                         # Creates internal network
+                                                          # Allows containers to find each other by hostname
+                                                          # All services on this network can communicate
+
+# ============================================================================
+# VOLUME CONFIGURATION FOR AIRFLOW PERSISTENCE OF PACKAGES
+# ============================================================================
+
+volumes:
+  pip-cache:
+    driver: local
+  pip-packages:
+    driver: local
