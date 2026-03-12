@@ -1,3 +1,7 @@
+I've updated the README by removing all sections that reference components or configurations no longer present in your current docker-compose.yml and .env files. Here's the cleaned-up version:
+
+---
+
 # Ultimate Data Engineering Sandbox Docker Compose Setup
 
 A comprehensive, production-like data engineering development environment with Apache Airflow, Kafka, Spark, PostgreSQL, and more - all containerized for easy setup and collaboration.
@@ -51,8 +55,7 @@ The stack separates concerns clearly:
 - **PostgreSQL-app**: Your business data warehouse
 - **Kafka + Schema Registry**: Event streaming backbone
 - **Airflow (webserver + scheduler + worker)**: Workflow orchestration
-- **PySpark + Jupyter**: Interactive data processing
-- **Python-dev**: General-purpose development
+- **python-dev**: General-purpose development with PySpark and Jupyter
 - **pgAdmin + Kafka UI**: Visual management tools
 
 ## 🚀 Features & Capabilities
@@ -122,16 +125,16 @@ The stack separates concerns clearly:
 │  └──────────────┘     └──────────────┘     └──────────────┘               │
 │         │                      │                      │                    │
 │         ▼                      ▼                      ▼                    │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐               │
-│  │   airflow-   │     │  pyspark-dev │     │  python-dev  │               │
-│  │   scheduler  │     │  (Jupyter)   │     │              │               │
-│  └──────────────┘     └──────────────┘     └──────────────┘               │
-│         │                      │                      │                    │
-│         ▼                      ▼                      ▼                    │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐               │
-│  │   airflow-   │     │ postgres-app │     │    data-     │               │
-│  │    worker    │────▶│              │     │  generator   │               │
-│  └──────────────┘     └──────────────┘     └──────────────┘               │
+│  ┌──────────────┐     ┌──────────────┐                                   │
+│  │   airflow-   │     │  python-dev  │                                   │
+│  │   scheduler  │     │  (Jupyter)   │                                   │
+│  └──────────────┘     └──────────────┘                                   │
+│         │                      │                                          │
+│         ▼                      ▼                                          │
+│  ┌──────────────┐     ┌──────────────┐                                   │
+│  │   airflow-   │     │ postgres-app │                                   │
+│  │    worker    │────▶│              │                                   │
+│  └──────────────┘     └──────────────┘                                   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -268,14 +271,13 @@ cd data-engineering-sandbox
 mkdir -p postgres-airflow/data
 mkdir -p postgres-app/data
 mkdir -p airflow/{dags,logs,plugins,scripts}
-mkdir -p spark_jobs
 mkdir -p pgadmin
 mkdir -p kafka/data
-mkdir -p pyspark_code
+mkdir -p dev_code
 mkdir -p checkpoint
 mkdir -p data
-mkdir -p python_code
-mkdir -p generators
+mkdir -p sql_scripts
+mkdir -p postgres/backups
 ```
 
 ### Step 3: Pull Docker Images
@@ -359,26 +361,21 @@ your-project/
 │   ├── 📁 plugins/                    # Custom Airflow plugins (operators, hooks)
 │   └── 📁 scripts/                    # Helper scripts imported by DAGs
 │
-├── 📁 spark_jobs/                  # Shared Spark applications (batch/streaming)
-│
-├── 📁 pyspark_code/                # Jupyter notebooks for interactive development
+├── 📁 dev_code/                    # Development code for Jupyter/Python
 │
 ├── 📁 checkpoint/                   # Spark streaming checkpoints (fault recovery)
 │
 ├── 📁 data/                         # Shared data files (CSV, Parquet, JSON)
 │   └── 📄 .gitkeep                   # Placeholder to keep empty folder in Git
 │
-├── 📁 python_code/                  # Python applications, APIs, utilities
+├── 📁 sql_scripts/                  # SQL scripts for database operations
 │
-├── 📁 generators/                   # Data generator scripts for Kafka streams
+├── 📁 postgres/                      # PostgreSQL backups
+│   └── 📁 backups/                    # SQL backups from pgAdmin
 │
 └── 📁 kafka/                        # Kafka data persistence
     └── 📁 data/                       # Kafka topics and messages ⚠️ BINARY FILES
 ```
-
----
-
-Here's the properly formatted section for your README.md file:
 
 ---
 
@@ -588,7 +585,7 @@ This keeps your repository focused on what matters: the **logic** and **configur
 This repository includes:
 
 ✅ **Configuration files** - `docker-compose.yml`, `.env` (with default credentials for learning)  
-✅ **Code directories** - `airflow/dags/`, `spark_jobs/`, `pyspark_code/`, etc.  
+✅ **Code directories** - `airflow/dags/`, `dev_code/`, etc.  
 ✅ **Documentation** - This README  
 ✅ **Git configuration** - `.gitignore` to keep the repo clean  
 
@@ -620,15 +617,13 @@ docker-compose up -d
 | **postgres-app** | Database | Stores your application/business data (data warehouse) | N/A | `./postgres-app/data/` (DB files) | Same as input | `5433` | `localhost:5433` | Store results from Spark jobs, API data, dimensional models |
 | **redis** | Message Broker | Handles communication between Airflow components (Celery backend) | N/A | No persistent storage | No persistent storage | `6379` | `localhost:6379` | Internal Airflow communication only (ephemeral) |
 | **pgadmin** | Management UI | Web interface to manage both PostgreSQL databases | `./pgadmin/` (settings) | `./pgadmin/` | Same as input | `5050` | `http://localhost:5050` | Manual DB inspection, run SQL queries, import/export data |
-| **airflow-webserver** | Orchestration | Airflow UI, DAG parser, trigger DAG runs, visual interface | `./airflow/dags/` | `./airflow/dags/` (DAGs)<br>`./airflow/plugins/`<br>`./airflow/scripts/`<br>`./spark_jobs/` | `./airflow/logs/` (logs) | `8080` | `http://localhost:8080` | Monitor DAGs, trigger runs, check task status, view logs |
+| **airflow-webserver** | Orchestration | Airflow UI, DAG parser, trigger DAG runs, visual interface | `./airflow/dags/`<br>`./airflow/plugins/`<br>`./airflow/scripts/`<br>`./dev_code/` | `./airflow/dags/` (DAGs)<br>`./airflow/plugins/`<br>`./airflow/scripts/`<br>`./dev_code/` | `./airflow/logs/` (logs) | `8080` | `http://localhost:8080` | Monitor DAGs, trigger runs, check task status, view logs |
 | **airflow-scheduler** | Orchestration | Schedules when to run DAGs based on time/triggers | Same as webserver | Same as webserver | Same as webserver | None | N/A | Internal - runs continuously in background |
 | **airflow-worker** | Orchestration | Executes individual tasks from DAGs | Same as webserver | Same as webserver | Same as webserver | None | N/A | Internal - executes your Python/Spark/SQL tasks |
 | **broker** | Streaming | Kafka message broker for real-time data streams | N/A | `./kafka/data/` (persistence) | Same as input | `9092` | `localhost:9092` | Real-time data ingestion, event streaming, pub/sub |
 | **schema-registry** | Streaming | Manages Kafka message schemas (Avro/Protobuf/JSON) | N/A | No persistent storage | No persistent storage | `8081` | `http://localhost:8081` | When using structured messages with schema validation |
 | **kafka-ui** | Management UI | Visual interface for Kafka topics, messages, consumer groups | N/A | No persistent storage | No persistent storage | `8090` | `http://localhost:8090` | Monitor Kafka, view messages, create topics, check consumer lag |
-| **pyspark-dev** | Processing | Jupyter Lab with PySpark for interactive development | `./pyspark_code/`<br>`./spark_jobs/`<br>`./data/`<br>`./checkpoint/` | `./pyspark_code/` (notebooks)<br>`./spark_jobs/` (scripts)<br>`./data/` (input data)<br>`./checkpoint/` | `./pyspark_code/` (saved notebooks)<br>`./spark_jobs/` (output scripts)<br>`./data/` (results)<br>`./checkpoint/` (state) | `8888`<br>`4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` | Develop Spark jobs, test transformations, explore data, build ML features |
-| **python-dev** | Development | General Python environment for apps, APIs, utilities | `./python_code/`<br>`./data/` | `./python_code/` (scripts)<br>`./data/` (input) | `./python_code/` (output)<br>`./data/` (output) | None | N/A | Build FastAPI apps, create data utilities, test libraries, run scripts |
-| **data-generator** | Development | Generates realistic test data and streams to Kafka | `./generators/` | `./generators/` (scripts) | N/A (writes to Kafka) | None | N/A | Simulate real-time data streams, load testing, demos |
+| **python-dev** | Development | Jupyter Lab with PySpark for interactive development | `./dev_code/`<br>`./data/`<br>`./checkpoint/` | `./dev_code/` (notebooks/code)<br>`./data/` (input data)<br>`./checkpoint/` | `./dev_code/` (saved notebooks)<br>`./data/` (results)<br>`./checkpoint/` (state) | `8888`<br>`4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` | Develop Spark jobs, test transformations, explore data, build ML features |
 
 ---
 
@@ -643,12 +638,11 @@ docker-compose up -d
 | `./airflow/logs/` | All Airflow logs | `.log` text files | YOU (debugging) | All Airflow services | ⭐⭐ Medium - debugging | Organized by `dag_id/task_id/date/` |
 | `./airflow/plugins/` | Custom Airflow plugins | `.py` Python files | All Airflow services | YOU (code editor) | ⭐⭐ Medium - custom code | Restart webserver after adding |
 | `./airflow/scripts/` | Helper utilities for DAGs | `.py`, `.sh` files | All Airflow services | YOU (code editor) | ⭐⭐ Medium - utilities | Import via `sys.path.append('/opt/airflow/scripts')` |
-| `./spark_jobs/` | Spark applications (production) | `.py` Python files | airflow-worker, pyspark-dev | YOU (code editor) | ⭐⭐⭐ CRITICAL - Spark logic | Write once, run from Airflow or develop in Jupyter |
-| `./pyspark_code/` | Jupyter notebooks (development) | `.ipynb` Jupyter notebooks | pyspark-dev | YOU (Jupyter UI) | ⭐⭐ Medium - development | Access via Jupyter Lab at port 8888 |
-| `./checkpoint/` | Spark streaming checkpoints | Binary checkpoint files | pyspark-dev | pyspark-dev | ⭐⭐ Medium - streaming state | CRITICAL for recovery - NEVER delete while streaming |
-| `./data/` | Shared data files | `.csv`, `.parquet`, `.json`, `.txt` | pyspark-dev, python-dev | pyspark-dev, python-dev, YOU | ⭐⭐⭐ CRITICAL - processed data | Perfect for sample datasets and intermediate results |
-| `./python_code/` | Python applications/APIs | `.py` Python files | python-dev | YOU (code editor) | ⭐⭐ Medium - application code | Working directory is `/app` inside container |
-| `./generators/` | Data generator scripts | `.py` Python files | data-generator | YOU (code editor) | ⭐ Low - test code | Great for simulating real-time data streams |
+| `./dev_code/` | Jupyter notebooks and Python code | `.ipynb`, `.py` files | python-dev, Airflow services | YOU (Jupyter UI/code editor) | ⭐⭐⭐ CRITICAL - Development code | Access via Jupyter Lab at port 8888 |
+| `./checkpoint/` | Spark streaming checkpoints | Binary checkpoint files | python-dev | python-dev | ⭐⭐ Medium - streaming state | CRITICAL for recovery - NEVER delete while streaming |
+| `./data/` | Shared data files | `.csv`, `.parquet`, `.json`, `.txt` | python-dev, Airflow services | python-dev, YOU | ⭐⭐⭐ CRITICAL - processed data | Perfect for sample datasets and intermediate results |
+| `./sql_scripts/` | SQL scripts for database operations | `.sql` files | pgadmin, postgres services | YOU | ⭐ Medium - reusable queries | Mounted at `/scripts` in pgadmin |
+| `./postgres/backups/` | SQL backups from pgAdmin | `.sql`, `.backup` files | YOU (via pgAdmin) | pgadmin | ⭐⭐⭐ CRITICAL - database backups | Created via pgAdmin backup tool |
 | `./kafka/data/` | Kafka topics and messages | Kafka binary logs | broker | broker | ⭐⭐⭐ CRITICAL - streaming data | Without this volume, ALL Kafka data is lost on restart |
 
 ---
@@ -660,16 +654,14 @@ docker-compose up -d
 | **postgres-airflow** | N/A (database only) | `./postgres-airflow/data` → `/var/lib/postgresql/data` | Same as input (DB files written here) | `5432:5432` | `localhost:5432` | Airflow metadata storage |
 | **postgres-app** | N/A (database only) | `./postgres-app/data` → `/var/lib/postgresql/data` | Same as input (DB files written here) | `5433:5432` | `localhost:5433` | Application data warehouse |
 | **redis** | N/A (in-memory DB) | No persistent storage | No persistent storage | `6379:6379` | `localhost:6379` | Message broker for Celery |
-| **pgadmin** | `./pgadmin/` | `./pgadmin` → `/var/lib/pgadmin` (settings) | Same as input (settings saved) | `5050:80` | `http://localhost:5050` | PostgreSQL management UI |
-| **airflow-webserver** | `./airflow/dags/`<br>`./airflow/plugins/`<br>`./airflow/scripts/`<br>`./spark_jobs/` | `./airflow/dags` → `/opt/airflow/dags`<br>`./airflow/plugins` → `/opt/airflow/plugins`<br>`./airflow/scripts` → `/opt/airflow/scripts`<br>`./spark_jobs` → `/opt/airflow/spark_jobs` | `./airflow/logs` ← `/opt/airflow/logs` | `8080:8080` | `http://localhost:8080` | Airflow web UI & DAG parser |
+| **pgadmin** | `./pgadmin/`<br>`./sql_scripts/`<br>`./data/`<br>`./postgres/backups/` | `./pgadmin` → `/var/lib/pgadmin` (settings)<br>`./sql_scripts` → `/scripts`<br>`./data` → `/data`<br>`./postgres/backups` → `/backups` | Same as input (settings saved)<br>`./postgres/backups` ← `/backups` | `5050:80` | `http://localhost:5050` | PostgreSQL management UI |
+| **airflow-webserver** | `./airflow/dags/`<br>`./airflow/plugins/`<br>`./airflow/scripts/`<br>`./dev_code/`<br>`./data/` | `./airflow/dags` → `/opt/airflow/dags`<br>`./airflow/plugins` → `/opt/airflow/plugins`<br>`./airflow/scripts` → `/opt/airflow/scripts`<br>`./dev_code` → `/opt/airflow/dev_code`<br>`./data` → `/data` | `./airflow/logs` ← `/opt/airflow/logs` | `8080:8080` | `http://localhost:8080` | Airflow web UI & DAG parser |
 | **airflow-scheduler** | Same as webserver | Same as webserver | Same as webserver | N/A | N/A | Schedules DAG runs |
 | **airflow-worker** | Same as webserver | Same as webserver | Same as webserver | N/A | N/A | Executes task instances |
 | **broker** | `./kafka/data/` | `./kafka/data` → `/var/lib/kafka/data` | Same as input (Kafka logs) | `9092:9092` | `localhost:9092` | Kafka message broker (KRaft mode) |
 | **schema-registry** | N/A | No persistent storage | No persistent storage | `8081:8081` | `http://localhost:8081` | Kafka schema management |
 | **kafka-ui** | N/A | No persistent storage | No persistent storage | `8090:8080` | `http://localhost:8090` | Kafka management UI |
-| **pyspark-dev** | `./pyspark_code/`<br>`./spark_jobs/`<br>`./data/`<br>`./checkpoint/` | `./pyspark_code` → `/home/jovyan/work`<br>`./spark_jobs` → `/home/jovyan/spark_jobs`<br>`./data` → `/home/jovyan/data`<br>`./checkpoint` → `/home/jovyan/checkpoint` | `./pyspark_code` ← `/home/jovyan/work`<br>`./spark_jobs` ← `/home/jovyan/spark_jobs`<br>`./data` ← `/home/jovyan/data`<br>`./checkpoint` ← `/home/jovyan/checkpoint` | `8888:8888`<br>`4040:4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` | Jupyter Lab with PySpark |
-| **python-dev** | `./python_code/`<br>`./data/` | `./python_code` → `/app`<br>`./data` → `/data` | `./python_code` ← `/app`<br>`./data` ← `/data` | N/A | N/A | General Python development |
-| **data-generator** | `./generators/` | `./generators` → `/app` | N/A (writes to Kafka) | N/A | N/A | Generate test data to Kafka |
+| **python-dev** | `./dev_code/`<br>`./data/`<br>`./checkpoint/` | `./dev_code` → `/home/jovyan/work`<br>`./data` → `/home/jovyan/data`<br>`./checkpoint` → `/home/jovyan/checkpoint` | `./dev_code` ← `/home/jovyan/work`<br>`./data` ← `/home/jovyan/data`<br>`./checkpoint` ← `/home/jovyan/checkpoint` | `8888:8888`<br>`4040:4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` | Jupyter Lab with PySpark |
 
 ---
 
@@ -684,12 +676,11 @@ docker-compose up -d
 | `./airflow/logs/` | Airflow logs (scheduler, tasks, webserver) | All Airflow services | `/opt/airflow/logs` | Essential for debugging failed tasks |
 | `./airflow/plugins/` | Custom Airflow plugins | All Airflow services | `/opt/airflow/plugins` | Restart webserver after adding |
 | `./airflow/scripts/` | Helper scripts imported by DAGs | All Airflow services | `/opt/airflow/scripts` | Add to `sys.path` in DAGs |
-| `./spark_jobs/` | Spark application code (production) | Airflow services, pyspark-dev | Airflow: `/opt/airflow/spark_jobs`<br>Jupyter: `/home/jovyan/spark_jobs` | Write once, run from Airflow or Jupyter |
-| `./pyspark_code/` | Jupyter notebooks (development) | pyspark-dev | `/home/jovyan/work` | Access via Jupyter Lab at port 8888 |
-| `./checkpoint/` | Spark streaming checkpoints | pyspark-dev | `/home/jovyan/checkpoint` | ⚠️ CRITICAL for recovery - don't delete |
-| `./data/` | Shared data files (CSV, Parquet, JSON) | pyspark-dev, python-dev | Jupyter: `/home/jovyan/data`<br>Python: `/data` | Perfect for sample datasets |
-| `./python_code/` | Python scripts, FastAPI apps, utilities | python-dev | `/app` | Working directory is `/app` |
-| `./generators/` | Data generator scripts for Kafka | data-generator | `/app` | Simulate real-time data streams |
+| `./dev_code/` | Jupyter notebooks and Python code | python-dev, Airflow services | Jupyter: `/home/jovyan/work`<br>Airflow: `/opt/airflow/dev_code` | Access via Jupyter Lab at port 8888 |
+| `./checkpoint/` | Spark streaming checkpoints | python-dev | `/home/jovyan/checkpoint` | ⚠️ CRITICAL for recovery - don't delete |
+| `./data/` | Shared data files (CSV, Parquet, JSON) | python-dev, Airflow services, pgadmin | Jupyter: `/home/jovyan/data`<br>Airflow: `/data`<br>pgadmin: `/data` | Perfect for sample datasets |
+| `./sql_scripts/` | SQL scripts for database operations | pgadmin, postgres services | pgadmin: `/scripts` | Mounted for easy SQL execution |
+| `./postgres/backups/` | Database backups from pgAdmin | pgadmin | `/backups` | Created via pgAdmin backup tool |
 | `./kafka/data/` | Kafka topics and messages | broker | `/var/lib/kafka/data` | ⚠️ Without this, ALL Kafka data is lost on restart |
 
 ---
@@ -791,6 +782,10 @@ The Airflow setup uses CeleryExecutor for distributed task execution:
 - **Password**: admin
 - **Purpose**: Visual PostgreSQL management
 - **Volume**: ./pgadmin (saves server connections)
+- **Additional mounts**: 
+  - `./sql_scripts:/scripts` - for running SQL scripts
+  - `./data:/data` - for importing CSV files
+  - `./postgres/backups:/backups` - for database backups
 
 To connect to databases from pgAdmin:
 - **Airflow DB**: Host: `postgres-airflow`, Port: 5432
@@ -823,10 +818,8 @@ These volumes contain code that services execute:
 | AIRFLOW_DAGS_VOLUME | ./airflow/dags | /opt/airflow/dags | Airflow DAG definitions |
 | AIRFLOW_PLUGINS_VOLUME | ./airflow/plugins | /opt/airflow/plugins | Custom Airflow plugins |
 | AIRFLOW_SCRIPTS_VOLUME | ./airflow/scripts | /opt/airflow/scripts | Helper Python scripts |
-| SPARK_JOBS_VOLUME | ./spark_jobs | /opt/airflow/spark_jobs | Spark application files |
-| PYSPARK_CODE_VOLUME | ./pyspark_code | /home/jovyan/work | Jupyter notebooks |
-| PYTHON_CODE_VOLUME | ./python_code | /app | Python applications |
-| GENERATOR_VOLUME | ./generators | /app | Data generator scripts |
+| DEV_CODE_VOLUME | ./dev_code | /opt/airflow/dev_code (Airflow)<br>/home/jovyan/work (Jupyter) | Shared development code |
+| SQL_SCRIPTS_VOLUME | ./sql_scripts | /scripts (pgAdmin)<br>/scripts (postgres) | SQL scripts for database operations |
 
 ### Data Volumes (INPUT/OUTPUT)
 
@@ -839,15 +832,15 @@ These volumes store persistent data:
 | PGADMIN_VOLUME | ./pgadmin | /var/lib/pgadmin | Settings (JSON) |
 | KAFKA DATA | ./kafka/data | /var/lib/kafka/data | Binary (Kafka logs) |
 | CHECKPOINT_VOLUME | ./checkpoint | /home/jovyan/checkpoint | Spark streaming state |
-| DATA_VOLUME | ./data | /home/jovyan/data | CSV/Parquet files |
+| DATA_VOLUME | ./data | /home/jovyan/data (Jupyter)<br>/data (Airflow, pgAdmin) | CSV/Parquet files |
 | AIRFLOW_LOGS_VOLUME | ./airflow/logs | /opt/airflow/logs | Text logs |
+| BACKUPS_VOLUME | ./postgres/backups | /backups (pgAdmin) | SQL database backups |
 
 ### Special Volumes (Pip Cache)
 
 ```yaml
 volumes:
   pip-cache:      # Docker-managed volume for pip downloads
-  pip-packages:   # Docker-managed volume for installed packages
 ```
 
 These Docker-managed volumes persist Python packages across container restarts, so you don't have to reinstall every time.
@@ -893,17 +886,16 @@ engine = create_engine('postgresql://app_user:app_password@postgres-app:5432/app
 
 ## 🧪 Development Environments
 
-### PySpark Development (`pyspark-dev`)
+### Python Development (`python-dev`)
 
-**Purpose**: Interactive data exploration and Spark development
+**Purpose**: Interactive data exploration and Spark development with Jupyter Lab
 
 **Access**: http://localhost:8888 (token: devtoken)
 
 **Pre-installed**:
 - Spark 3.4.1 with Kafka integration
 - Jupyter Lab interface
-- Pandas, NumPy
-- Spark SQL Kafka package
+- Common Python packages (confluent-kafka, fastapi, uvicorn, pyarrow, streamlit, plotly, dash, pytest)
 
 **Sample notebook**:
 ```python
@@ -921,50 +913,8 @@ query = df.selectExpr("CAST(value AS STRING)") \
     .start()
 ```
 
-### Python Development (`python-dev`)
-
-**Purpose**: General Python development (FastAPI, scripts, utilities)
-
-**Environment**:
-- Python 3.11 slim image
-- Pre-installed: pyspark, pandas, confluent-kafka, fastapi, sqlalchemy
-- Working directory: /app (maps to ./python_code)
-
-**Keep container running** with `tail -f /dev/null` - attach to it:
-```bash
-docker exec -it python-dev bash
-# Now you're inside the container, run your scripts
-python my_script.py
-```
-
-### Data Generator (`data-generator`)
-
-**Purpose**: Generate test data and stream to Kafka
-
-**Environment**:
-- Python 3.11 slim
-- Pre-installed: confluent-kafka, faker, pandas
-
-**Example generator script** (place in ./generators/):
-```python
-from faker import Faker
-from confluent_kafka import Producer
-import json
-import time
-
-fake = Faker()
-producer = Producer({'bootstrap.servers': 'broker:29092'})
-
-while True:
-    data = {
-        'name': fake.name(),
-        'email': fake.email(),
-        'timestamp': time.time()
-    }
-    producer.produce('users', json.dumps(data).encode('utf-8'))
-    producer.flush()
-    time.sleep(1)
-```
+**Automatic package installation**:
+The container automatically installs packages from `COMMON_PYTHON_PACKAGES` in the .env file on startup.
 
 ---
 
@@ -1001,6 +951,11 @@ To add database connections:
    - Username: app_user
    - Password: app_password
 
+**Additional Features**:
+- Run SQL scripts from `/scripts` directory
+- Import CSV files from `/data` directory
+- Create backups to `/backups` directory
+
 ### Kafka UI (http://localhost:8090)
 
 Features:
@@ -1012,7 +967,7 @@ Features:
 
 **Token**: devtoken (from .env)
 
-Navigate to `/work` to access your ./pyspark_code directory.
+Navigate to `/work` to access your ./dev_code directory.
 
 ### Spark UI (http://localhost:4040)
 
@@ -1033,10 +988,11 @@ Only appears when a Spark application is running. Monitor:
 | Kafka messages | ✅ Yes | ./kafka/data | Topics and offsets |
 | Airflow logs | ✅ Yes | ./airflow/logs | Task and system logs |
 | Airflow metadata | ✅ Yes | postgres-airflow | DAG runs, connections |
-| Jupyter notebooks | ✅ Yes | ./pyspark_code | Your code |
-| Python packages | ✅ Yes | Docker volumes | pip-cache, pip-packages |
+| Jupyter notebooks | ✅ Yes | ./dev_code | Your code |
+| Python packages | ✅ Yes | Docker volumes | pip-cache |
 | pgAdmin settings | ✅ Yes | ./pgadmin | Saved connections |
 | Spark checkpoints | ✅ Yes | ./checkpoint | Streaming state |
+| Database backups | ✅ Yes | ./postgres/backups | SQL dumps from pgAdmin |
 
 ### What's Ephemeral (Lost on Restart)
 
@@ -1061,9 +1017,7 @@ postgres-app ─────────────────┘             
 broker ───────────────────────┬──> schema-registry ──┘
                               │
                               └──> kafka-ui
-                                   pyspark-dev
                                    python-dev
-                                   data-generator
 ```
 
 ### Healthcheck Details
@@ -1103,9 +1057,7 @@ docker exec broker kafka-topics --bootstrap-server broker:29092 --list
 | **broker** (Kafka) | No authentication | No authentication | N/A | `9092` | `localhost:9092` |
 | **schema-registry** | No authentication | No authentication | N/A | `8081` | `http://localhost:8081` |
 | **kafka-ui** | No authentication | No authentication | N/A | `8090` | `http://localhost:8090` |
-| **pyspark-dev** (Jupyter) | `devtoken` (token) | N/A | N/A | `8888`<br>`4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` (Spark UI) |
-| **python-dev** | No authentication | No authentication | N/A | None | N/A (container only - `docker exec -it python-dev bash`) |
-| **data-generator** | No authentication | No authentication | N/A | None | N/A (container only - `docker exec -it data-generator bash`) |
+| **python-dev** (Jupyter) | `devtoken` (token) | N/A | N/A | `8888`<br>`4040` | `http://localhost:8888?token=devtoken`<br>`http://localhost:4040` (Spark UI) |
 
 ---
 
@@ -1114,7 +1066,7 @@ docker exec broker kafka-topics --bootstrap-server broker:29092 --list
 | Connection Type | Connection String / Configuration | When to Use |
 |-----------------|-----------------------------------|-------------|
 | **Airflow → postgres-airflow** | `postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow` | Airflow metadata connection (already configured) |
-| **Application → postgres-app** (from container) | `postgresql://app_user:app_password@postgres-app:5432/app_data` | From pyspark-dev, python-dev, or airflow-worker |
+| **Application → postgres-app** (from container) | `postgresql://app_user:app_password@postgres-app:5432/app_data` | From python-dev or airflow-worker |
 | **Application → postgres-app** (from host) | `postgresql://app_user:app_password@localhost:5433/app_data` | From your local machine (Python scripts, BI tools) |
 | **Airflow → redis** | `redis://redis:6379/0` | Celery broker URL (already configured) |
 | **Airflow → Kafka** | `broker:29092` | Internal connection from Airflow to Kafka |
@@ -1122,10 +1074,8 @@ docker exec broker kafka-topics --bootstrap-server broker:29092 --list
 | **schema-registry → Kafka** | `broker:29092` | Internal connection for schema registry |
 | **kafka-ui → Kafka** | `broker:29092` | Internal connection for Kafka UI |
 | **kafka-ui → schema-registry** | `http://schema-registry:8081` | Internal connection for schema registry UI |
-| **pyspark-dev → Kafka** | `broker:29092` | Spark streaming from Kafka inside container |
-| **pyspark-dev → postgres-app** | `jdbc:postgresql://postgres-app:5432/app_data` | JDBC connection for Spark |
-| **python-dev → postgres-app** | `postgresql://app_user:app_password@postgres-app:5432/app_data` | SQLAlchemy connection from python-dev |
-| **data-generator → Kafka** | `broker:29092` | Producer connection for test data |
+| **python-dev → Kafka** | `broker:29092` | Spark streaming from Kafka inside container |
+| **python-dev → postgres-app** | `jdbc:postgresql://postgres-app:5432/app_data` | JDBC connection for Spark |
 
 ---
 
@@ -1136,7 +1086,7 @@ docker exec broker kafka-topics --bootstrap-server broker:29092 --list
 - Jupyter uses a **token** (`devtoken`) instead of username/password - pass in URL or Jupyter Lab login screen
 - Internal services communicate via **container names** (e.g., `postgres-airflow`, not `localhost`)
 - External access from your host machine uses **localhost** with the exposed ports
-- The `pip-cache` and `pip-packages` Docker volumes persist Python packages across container restarts
+- The `pip-cache` Docker volume persists Python packages across container restarts
 
 ---
 
@@ -1176,6 +1126,12 @@ docker exec broker kafka-topics --bootstrap-server broker:29092 --list
 
 5. **Save both servers** - You should now see both databases in the left sidebar
 
+### Using pgAdmin with Mounted Directories
+
+- **Run SQL scripts**: Navigate to Tools → Query Tool, then open files from `/scripts`
+- **Import CSV**: Right-click a table → Import/Export → Use `/data/filename.csv`
+- **Create backups**: Right-click a database → Backup → Save to `/backups`
+
 ---
 
 ## ❗ Common Mistakes to Avoid
@@ -1203,13 +1159,15 @@ These resolve correctly because all services are on the same Docker network (`da
 | What You're Building | Put It Here | Access Via |
 |---------------------|-------------|------------|
 | **Airflow DAG** (production pipeline) | `./airflow/dags/` | Airflow UI @ port 8080 |
-| **Jupyter notebook** (exploratory analysis) | `./pyspark_code/` | Jupyter @ port 8888 |
-| **Spark job** (batch/streaming) | `./spark_jobs/` | Airflow or Jupyter |
-| **Python script** (utility) | `./python_code/` | `docker exec -it python-dev bash` |
-| **FastAPI app** (REST API) | `./python_code/` | Run with uvicorn inside python-dev |
-| **Kafka producer** (test data) | `./generators/` | `docker exec -it data-generator bash` |
+| **Jupyter notebook** (exploratory analysis) | `./dev_code/` | Jupyter @ port 8888 |
+| **Spark job** (batch/streaming) | `./dev_code/` | Airflow or Jupyter |
+| **Python script** (utility) | `./dev_code/` | Can be imported by Airflow DAGs |
+| **FastAPI app** (REST API) | `./dev_code/` | Run with uvicorn inside python-dev |
+| **Kafka producer** (test data) | `./dev_code/` | Run inside python-dev container |
 | **Sample data** (CSV/Parquet) | `./data/` | Access from any container at `/data` |
+| **SQL scripts** | `./sql_scripts/` | Run from pgAdmin at `/scripts` |
 | **Custom Airflow plugin** | `./airflow/plugins/` | Restart webserver after adding |
+| **Helper scripts for DAGs** | `./airflow/scripts/` | Import with `sys.path.append('/opt/airflow/scripts')` |
 
 ---
 
@@ -1462,14 +1420,20 @@ Add packages to `AIRFLOW_EXTRA_PIP_PACKAGES` in .env:
 AIRFLOW_EXTRA_PIP_PACKAGES="apache-airflow-providers-apache-spark==4.1.1 pyspark==3.4.1 pandas requests beautifulsoup4"
 ```
 
-**In Jupyter**:
+**In Jupyter/Python-dev**:
+Add packages to `COMMON_PYTHON_PACKAGES` in .env:
+```bash
+COMMON_PYTHON_PACKAGES="confluent-kafka==2.3.0 fastapi==0.104.1 uvicorn==0.24.0 pyarrow==10.0.1 streamlit==1.28.0 plotly==5.18.0 dash==2.14.0 pytest==7.4.0 new-package==1.0.0"
+```
+
+**Manual installation**:
 ```bash
 # Access the container and pip install
-docker exec -it pyspark-dev pip install new-package
+docker exec -it python-dev pip install new-package
 ```
 
 **Persistent packages**:
-The `pip-packages` volume keeps installations across restarts.
+The `pip-cache` volume keeps installations across restarts.
 
 ### Custom Airflow Connections
 
@@ -1482,14 +1446,13 @@ AIRFLOW_CONN_MY_KAFKA=kafka://broker:29092
 
 ### Adding Spark Packages
 
-For PySpark, modify the `PYSPARK_SUBMIT_ARGS` in docker-compose:
+For PySpark, modify the `PYSPARK_SUBMIT_ARGS` in docker-compose for python-dev:
 ```yaml
 environment:
   - PYSPARK_SUBMIT_ARGS=--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,org.postgresql:postgresql:42.6.0 pyspark-shell
 ```
 
 ---
-
 
 ## 📚 Learning Resources
 
@@ -1504,11 +1467,11 @@ environment:
 ### Sample Projects to Try
 
 #### 1. Real-time Dashboard Pipeline
-- Generate fake user events with `data-generator`
+- Generate fake user events with a Python script in `./dev_code`
 - Stream to Kafka
 - Process with PySpark (aggregate per minute)
 - Write to PostgreSQL
-- Query from Jupyter/Tableau
+- Query from Jupyter
 
 #### 2. Batch ETL with Airflow
 - Place CSV files in `./data`
@@ -1520,13 +1483,13 @@ environment:
 
 #### 3. Kafka to PostgreSQL Sink
 - Create Kafka topic
-- Build PySpark streaming job
+- Build PySpark streaming job in Jupyter
 - Write to PostgreSQL with `foreachBatch`
 - Monitor with Kafka UI
 
 #### 4. Airflow Spark Integration
-- Write PySpark job in `./spark_jobs`
-- Create Airflow DAG with SparkSubmitOperator
+- Write PySpark job and save in `./dev_code`
+- Create Airflow DAG with PythonOperator that runs the Spark job
 - Pass dynamic dates as arguments
 - Monitor in Spark UI
 
@@ -1593,7 +1556,7 @@ This Docker Compose setup is designed to be your **ultimate data engineering pla
 ✅ **DO**:
 - Use `postgres-app` for all business data
 - Put DAGs in `./airflow/dags/` (auto-reloads)
-- Save notebooks in `./pyspark_code/`
+- Save notebooks in `./dev_code/`
 - Use `broker:29092` for internal Kafka connections
 - Create `.gitignore` with all data/volume paths
 
@@ -1613,12 +1576,9 @@ If you encounter issues:
 To contribute improvements:
 - Update this README
 - Add example DAGs to `airflow/dags/examples/`
-- Share useful generator scripts
+- Share useful generator scripts in `dev_code/examples/`
 - Document workarounds for common issues
 
 ---
 
-
 **Happy Data Engineering!** 🚀📊
-
-
