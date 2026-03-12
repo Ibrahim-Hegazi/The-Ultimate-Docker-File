@@ -1,7 +1,3 @@
-I've updated the README by removing all sections that reference components or configurations no longer present in your current docker-compose.yml and .env files. Here's the cleaned-up version:
-
----
-
 # Ultimate Data Engineering Sandbox Docker Compose Setup
 
 A comprehensive, production-like data engineering development environment with Apache Airflow, Kafka, Spark, PostgreSQL, and more - all containerized for easy setup and collaboration.
@@ -1582,3 +1578,4 @@ To contribute improvements:
 ---
 
 **Happy Data Engineering!** 🚀📊
+
