@@ -278,7 +278,21 @@ mkdir -p python_code
 mkdir -p generators
 ```
 
-### Step 3: Start the Stack
+### Step 3: Pull Docker Images
+
+```bash
+# Pull each image separately to avoid timeout issues
+docker pull postgres:15
+docker pull redis:7-alpine
+docker pull confluentinc/cp-kafka:7.6.1
+docker pull confluentinc/cp-schema-registry:7.6.1
+docker pull dpage/pgadmin4:7
+docker pull apache/airflow:2.7.3-python3.11
+docker pull jupyter/pyspark-notebook:spark-3.4.1
+docker pull provectuslabs/kafka-ui:latest
+```
+
+### Step 4: Start the Stack
 
 ```bash
 # Start all services
@@ -289,9 +303,15 @@ docker-compose logs -f
 
 # Check service status
 docker-compose ps
+
+# Optional Specific Logs for airflow
+docker-compose logs -f airflow-webserver
+
+# Optional Specific Logs for python-dev
+docker-compose logs -f python-dev
 ```
 
-### Step 4: Verify Installation
+### Step 5: Verify Installation
 
 Access each service's UI to verify they're running:
 
@@ -303,7 +323,7 @@ Access each service's UI to verify they're running:
 | Kafka UI | http://localhost:8090 | (no login) |
 | Spark UI | http://localhost:4040 | (appears when Spark runs) |
 
-### Step 5: Stop the Stack
+### Step 6: Stop the Stack
 
 ```bash
 # Stop all services (preserves data)
@@ -1600,4 +1620,5 @@ To contribute improvements:
 
 
 **Happy Data Engineering!** 🚀📊
+
 
